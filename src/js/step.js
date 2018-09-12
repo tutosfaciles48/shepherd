@@ -64,6 +64,7 @@ export class Step extends Evented {
    * ```
    * @param {string} options.buttons.button.text The HTML text of the button
    * @param {string} options.classes Extra classes to add to the step. `shepherd-theme-arrows` will give you our theme.
+   * @param {boolean} [options.disableAttachTarget=false] Whether or not the `attachTo` element should be enabled for pointer events
    * @param {Object} options.popperOptions Extra options to pass to popper.js
    * @param {HTMLElement|string} options.renderLocation An `HTMLElement` or selector string of the element you want the
    * tour step to render in. Most of the time, you will not need to pass anything, and it will default to `document.body`,
@@ -243,6 +244,24 @@ export class Step extends Evented {
   }
 
   /**
+   * Stores a reference to the element found from the `attachTo` selector. If the
+   * target should be disabled, we'll temporarily set `pointerEvents` to 'none'.
+   *
+   * @private
+   */
+  _setupTargetElem() {
+    const { element } = this.getAttachTo();
+
+    if (element instanceof HTMLElement) {
+      this.targetElem = element;
+
+      if (this.options.disableAttachTarget) {
+        element.style.pointerEvents = 'none';
+      }
+    }
+  }
+
+  /**
    * Returns the tour for the step
    * @return {Tour} The tour instance
    */
@@ -302,6 +321,13 @@ export class Step extends Evented {
       delete this.el;
     }
 
+    if (this.targetElem) {
+      if (this.options.disableAttachTarget) {
+        this.targetElem.style.pointerEvents = 'auto';
+      }
+      this.targetElem = null;
+    }
+
     if (this.popper) {
       this.popper.destroy();
     }
@@ -351,7 +377,9 @@ export class Step extends Evented {
     if (!isUndefined(this.el)) {
       this.destroy();
     }
+
     this.el = this._createElement();
+    this._setupTargetElem();
 
     if (this.options.advanceOn) {
       this.bindAdvance();
@@ -367,12 +395,10 @@ export class Step extends Evented {
    * scrollIntoView call.
    */
   scrollTo() {
-    const { element } = this.getAttachTo();
-
     if (isFunction(this.options.scrollToHandler)) {
-      this.options.scrollToHandler(element);
-    } else if (isElement(element)) {
-      element.scrollIntoView();
+      this.options.scrollToHandler(this.targetElem);
+    } else if (isElement(this.targetElem)) {
+      this.targetElem.scrollIntoView();
     }
   }
 
@@ -450,6 +476,7 @@ export class Step extends Evented {
 
     document.body.setAttribute('data-shepherd-step', this.id);
 
+    this.setupAttachTarget();
     this.setupPopper();
 
     if (this.options.scrollTo) {
