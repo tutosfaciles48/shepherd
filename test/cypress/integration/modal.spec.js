@@ -1,18 +1,11 @@
 import setupTour from '../utils/setup-tour';
-import tippy from 'tippy.js';
-import {
-  elementIds as modalElementIds,
-  classNames as modalClassNames
-} from '../../../src/js/utils/modal';
-import { assert } from 'chai';
+import { expect } from 'chai';
 
 describe('Modal mode', () => {
-  let Shepherd;
-  let tour;
+  let Shepherd, tour;
 
   beforeEach(() => {
     Shepherd = null;
-    tippy.setDefaults({ duration: 0, delay: 0 });
 
     cy.visit('/test/dummy/', {
       onLoad(contentWindow) {
@@ -37,8 +30,8 @@ describe('Modal mode', () => {
     it('Displaying the modal during tours when modal mode is enabled', () => {
       tour.start();
 
-      cy.get(`#${modalElementIds.modalOverlay}`).should('have.css', 'display', 'block');
-      cy.get('body').should('have.class', modalClassNames.isVisible);
+      cy.get('.shepherd-modal-overlay-container').should('have.css', 'opacity', '0.5');
+      cy.get('.shepherd-modal-overlay-container').should('have.class', 'shepherd-modal-is-visible');
     });
   });
 
@@ -52,8 +45,8 @@ describe('Modal mode', () => {
     it('Hiding the modal during tours when modal mode is not enabled', () => {
       tour.start();
 
-      cy.get(`#${modalElementIds.modalOverlay}`).should('have.css', 'display', 'none');
-      cy.get('body').should('not.have.class', modalClassNames.isVisible);
+      cy.get('.shepherd-modal-overlay-container').should('have.css', 'opacity', '0');
+      cy.get('.shepherd-modal-overlay-container').should('not.have.class', 'shepherd-modal-is-visible');
     });
   });
 
@@ -62,14 +55,12 @@ describe('Modal mode', () => {
       tour = setupTour(Shepherd, {}, null, { useModalOverlay: true });
     });
 
-    it('removes shepherd-modal-is-visible class from the BODY', () => {
+    it('removes shepherd-modal-is-visible class from the overlay', async() => {
       tour.start();
-      cy.get('body').should('have.class', modalClassNames.isVisible);
+      await cy.get('.shepherd-modal-overlay-container').should('have.class', 'shepherd-modal-is-visible');
 
-      setTimeout(() => {
-        tour.hide();
-        cy.get('body').should('not.have.class', modalClassNames.isVisible);
-      }, 0);
+      tour.hide();
+      cy.get('.shepherd-modal-overlay-container').should('not.have.class', 'shepherd-modal-is-visible');
     });
   });
 
@@ -77,12 +68,13 @@ describe('Modal mode', () => {
     const steps = () => {
       return [
         {
+          attachTo: {
+            element: '.hero-welcome',
+            on: 'bottom'
+          },
+          highlightClass: 'highlight',
           id: 'test-highlight',
-          options: {
-            attachTo: '.hero-welcome bottom',
-            highlightClass: 'highlight',
-            text: 'Testing highlight'
-          }
+          text: 'Testing highlight'
         }
       ];
     };
@@ -96,7 +88,34 @@ describe('Modal mode', () => {
     it('applying highlight classes to the target element', () => {
       tour.start();
 
-      assert.isOk(tour.getCurrentStep().target.classList.contains('highlight'));
+      expect(tour.getCurrentStep().target.classList.contains('highlight')).to.be.true;
+    });
+  });
+
+  describe('Modal with multiple Tours', function() {
+    it('only activates one SVG overall', async function() {
+      const steps = [
+        {
+          id: 'test',
+          title: 'This is a test step for our tour'
+        },
+        {
+          id: 'test-2',
+          title: 'This is a second test step for our tour'
+        }
+      ];
+      tour = setupTour(Shepherd, {}, steps, {
+        tourName: 'firstTour',
+        useModalOverlay: true
+      });
+      // setup a second tour with a unique name
+      setupTour(Shepherd, {}, null, {
+        tourName: 'secondTour'
+      });
+      tour.start();
+
+      cy.get('.shepherd-modal-overlay-container').should('have.length', 2);
+      cy.get('.shepherd-modal-is-visible').should('have.length', 1);
     });
   });
 });

@@ -9,21 +9,20 @@ import defaultSteps from './default-steps';
  */
 export default function(Shepherd, globalDefaults, customSteps, otherOptions) {
   const defaultStepOptions = Object.assign({}, {
-    showCancelLink: true
+    cancelIcon: {
+      enabled: true
+    }
   }, globalDefaults);
 
   const shepherdOptions = Object.assign({}, {
     defaultStepOptions
   }, otherOptions);
 
-  let shepherd = new Shepherd.Tour(shepherdOptions);
+  const shepherd = new Shepherd.Tour(shepherdOptions);
 
   const steps = typeof customSteps === 'function' ? customSteps(shepherd) : defaultSteps(shepherd);
 
-  steps.forEach((step) => {
-    const { id, options } = step;
-    shepherd.addStep(id, options);
-  });
+  shepherd.addSteps(steps);
 
   return shepherd;
 }

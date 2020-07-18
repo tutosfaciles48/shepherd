@@ -6,8 +6,8 @@
 /.nyc_output/
 /coverage/
 /cypress/
+/docs/
 /dist/
-/esdoc/
 /node_modules/
 /test/unit/dist
 /.DS_Store

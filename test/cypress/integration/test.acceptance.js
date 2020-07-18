@@ -1,13 +1,11 @@
 import setupTour from '../utils/setup-tour';
 import { assert } from 'chai';
-import tippy from 'tippy.js';
 
 let Shepherd;
 
 describe('Shepherd Acceptance Tests', () => {
   beforeEach(() => {
     Shepherd = null;
-    tippy.setDefaults({ duration: 0, delay: 0 });
 
     cy.visit('/test/dummy/', {
       onLoad(contentWindow) {
@@ -24,21 +22,21 @@ describe('Shepherd Acceptance Tests', () => {
         const steps = () => {
           return [
             {
-              id: 'welcome',
-              options: {
-                text: ['Shepherd is a JavaScript library'],
-                attachTo: {
-                  element: '.hero-welcome',
-                  on: 'bottom'
-                },
-                classes: 'shepherd shepherd-transparent-text'
-              }
+              text: 'Shepherd is a JavaScript library',
+              attachTo: {
+                element: '.hero-welcome',
+                on: 'bottom'
+              },
+              classes: 'shepherd shepherd-transparent-text',
+              id: 'welcome'
             }
           ];
         };
 
         const tour = setupTour(Shepherd, {
-          showCancelLink: false
+          cancelIcon: {
+            enabled: false
+          }
         }, steps);
 
         tour.start();
@@ -59,20 +57,20 @@ describe('Shepherd Acceptance Tests', () => {
           const steps = () => {
             return [
               {
-                id: 'including',
-                options: {
-                  title: 'Including',
-                  text: 'Including Shepherd is easy!',
-                  attachTo: {
-                    element: heroIncludingElement,
-                    on: 'bottom'
-                  }
-                }
+                title: 'Including',
+                text: 'Including Shepherd is easy!',
+                attachTo: {
+                  element: heroIncludingElement,
+                  on: 'bottom'
+                },
+                id: 'including'
               }
             ];
           };
           const tour = setupTour(Shepherd, {
-            showCancelLink: false
+            cancelIcon: {
+              enabled: false
+            }
           }, steps);
           tour.start();
           // Step text should be visible
@@ -87,27 +85,37 @@ describe('Shepherd Acceptance Tests', () => {
           return [
             {
               id: 'undefined-attachto',
-              options: {
-                title: 'Undefined attachTo',
-                text: 'When attachTo is undefined, the step is centered.'
-              }
+              title: 'Undefined attachTo',
+              text: 'When attachTo is undefined, the step is centered.'
             }
           ];
         };
         const tour = setupTour(Shepherd, {
-          showCancelLink: false
+          cancelIcon: {
+            enabled: false
+          }
         }, steps);
         tour.start();
         // Step text should be visible
         cy.get('.shepherd-text')
           .contains('When attachTo is undefined, the step is centered.').should('be.visible');
-        cy.document().then((document) => {
-          assert.deepEqual(document.body, tour.getCurrentStep().target, 'document.body is the target');
+        cy.document().then(() => {
+          assert.deepEqual(undefined, tour.getCurrentStep().target, 'target is undefined');
         });
       });
     });
 
     describe('buttons', () => {
+      beforeEach(() => {
+        // This is a hack removing the extra page elements so the page does not scroll. Cypress hates scrolling for some reason.
+        cy.document().then((document) => {
+          const heroFollowup = document.querySelector('.hero-followup');
+          heroFollowup.remove();
+          const img = document.querySelector('img');
+          img.remove();
+        });
+      });
+
       it('next/previous buttons work', () => {
         const tour = setupTour(Shepherd);
         tour.start();
@@ -139,72 +147,92 @@ describe('Shepherd Acceptance Tests', () => {
     });
 
     describe('Cancel Link', () => {
+      beforeEach(() => {
+        // This is a hack removing the extra page elements so the page does not scroll. Cypress hates scrolling for some reason.
+        cy.document().then((document) => {
+          const heroFollowup = document.querySelector('.hero-followup');
+          heroFollowup.remove();
+          const img = document.querySelector('img');
+          img.remove();
+        });
+      });
+
       it('Cancel link cancels the tour', () => {
         const tour = setupTour(Shepherd);
         tour.start();
-        cy.get('body').should('have.class', 'shepherd-active');
-        cy.get('.shepherd-cancel-link').click();
-        cy.get('body').should('not.have.class', 'shepherd-active');
+        cy.get('.shepherd-element').should(
+          'have.attr',
+          'data-shepherd-step-id'
+        );
+        cy.get('.shepherd-cancel-icon').click();
+        cy.get('.shepherd-element').should('not.exist');
       });
 
       it('Cancel link cancels the tour from another step', () => {
         const tour = setupTour(Shepherd);
         tour.start();
-        cy.get('body').should('have.class', 'shepherd-active');
+        cy.get('.shepherd-element').should(
+          'have.attr',
+          'data-shepherd-step-id'
+        );
         // Click next
         cy.contains('Next').click();
         // Step two text should be visible
-        cy.get('.shepherd-text')
-          .contains('Including Shepherd is easy!').should('be.visible');
-        cy.get('.shepherd-cancel-link:nth-child(2)').click();
-        cy.get('body').should('not.have.class', 'shepherd-active');
+        cy.get('.shepherd-text').contains('Including Shepherd is easy!').should('be.visible');
+        cy.get('.shepherd-cancel-icon:nth-child(2)').click();
+        cy.get('.shepherd-element').should('not.exist');
       });
 
       it('Hides cancel link', () => {
         const tour = setupTour(Shepherd, {
-          showCancelLink: false
+          cancelIcon: {
+            enabled: false
+          }
         });
         tour.start();
-        cy.get('.shepherd-cancel-link')
+        cy.get('.shepherd-cancel-icon')
           .should('not.be.visible');
       });
 
       it('Shows cancel link', () => {
         const tour = setupTour(Shepherd);
         tour.start();
-        cy.get('.shepherd-cancel-link')
+        cy.get('.shepherd-cancel-icon')
           .should('be.visible');
       });
     });
 
-    it.skip('Default classes applied', () => {
+    it('Default classes applied', () => {
       const tour = setupTour(Shepherd, {
         classes: 'test-defaults test-more-defaults'
       });
       tour.start();
+
       cy.get('.shepherd-element').should('have.class', 'test-defaults');
       cy.get('.shepherd-element').should('have.class', 'test-more-defaults');
     });
 
-    describe('scrollTo', () => {
+    describe('scrolling', () => {
       it('scrollTo:true scrolls', () => {
+        cy.scrollTo(0, 0);
         const tour = setupTour(Shepherd, {
           scrollTo: true
         });
         tour.start();
-        cy.get('[data-test-hero-scroll]').should('have.prop', 'scrollTop').and('eq', 0);
-        cy.contains('Next').click();
-        cy.get('[data-test-hero-scroll]').should('have.prop', 'scrollTop').and('gt', 0);
+        cy.document().get('body').should('have.prop', 'scrollTop').and('eq', 0);
+        tour.next();
+        cy.document().get('body').should('have.prop', 'scrollTop').and('gt', 0);
       });
 
       it('scrollTo:false does not scroll', () => {
+        cy.scrollTo(0, 0);
         const tour = setupTour(Shepherd, {
           scrollTo: false
         });
         tour.start();
-        cy.get('[data-test-hero-scroll]').should('have.prop', 'scrollTop').and('eq', 0);
-        cy.contains('Next').click();
-        cy.get('[data-test-hero-scroll]').should('have.prop', 'scrollTop').and('eq', 0);
+        cy.document().get('body').should('have.prop', 'scrollTop').and('eq', 0);
+        tour.next();
+        cy.document().get('body').should('have.prop', 'scrollTop').and('eq', 0);
       });
     });
   });

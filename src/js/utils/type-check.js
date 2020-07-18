@@ -1,17 +1,25 @@
 /**
+ * Checks if `value` is classified as an `Element`.
+ * @param {*} value The param to check if it is an Element
+ */
+export function isElement(value) {
+  return value instanceof Element;
+}
+
+/**
+ * Checks if `value` is classified as an `HTMLElement`.
+ * @param {*} value The param to check if it is an HTMLElement
+ */
+export function isHTMLElement(value) {
+  return value instanceof HTMLElement;
+}
+
+/**
  * Checks if `value` is classified as a `Function` object.
  * @param {*} value The param to check if it is a function
  */
 export function isFunction(value) {
   return typeof value === 'function';
-}
-
-/**
- * Checks if `value` is classified as a `Number` object.
- * @param {*} value The param to check if it is a number
- */
-export function isNumber(value) {
-  return typeof value === 'number';
 }
 
 /**

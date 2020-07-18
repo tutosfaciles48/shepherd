@@ -1,11 +1,9 @@
 import _ from 'lodash';
 import { stub } from 'sinon';
-import Shepherd from '../../src/js/shepherd.js';
-import { Step } from '../../src/js/step.js';
-import tippy from 'tippy.js';
-import { defaults as tooltipDefaults } from '../../src/js/utils/tooltip-defaults';
+import Shepherd from '../../src/js/shepherd';
+import { Step } from '../../src/js/step';
+import { setupTooltip } from '../../src/js/utils/general.js';
 import { spy } from 'sinon';
-import { drop, rewire$drop, restore } from '../../src/js/utils/general';
 
 // since importing non UMD, needs assignment
 window.Shepherd = Shepherd;
@@ -15,14 +13,24 @@ const DEFAULT_STEP_CLASS = 'shepherd-step-tooltip';
 describe('Tour | Top-Level Class', function() {
   let instance, shouldShowStep;
 
-  const defaultStepOptions = {
-    classes: DEFAULT_STEP_CLASS,
-    scrollTo: true
+  const showOn = () => {
+    return true;
   };
 
-  beforeEach(() => {
-    tippy.setDefaults({ duration: 0, delay: 0 });
-  });
+  const when = {
+    show() {
+    }
+  };
+
+  const defaultStepOptions = {
+    classes: DEFAULT_STEP_CLASS,
+    scrollTo: true,
+    popperOptions: {
+      modifiers: [{ name: 'offset', options: { offset: [0, 32] } }]
+    },
+    showOn,
+    when
+  };
 
   afterEach(() => {
     instance.complete();
@@ -36,11 +44,20 @@ describe('Tour | Top-Level Class', function() {
     });
 
     it('returns the default options on the instance', function() {
-      instance = new Shepherd.Tour({ defaultStepOptions });
+      instance = new Shepherd.Tour({
+        defaultStepOptions, steps: [{
+          scrollTo: false
+        }]
+      });
 
       expect(instance.options.defaultStepOptions).toEqual({
         classes: DEFAULT_STEP_CLASS,
-        scrollTo: true
+        scrollTo: true,
+        popperOptions: {
+          modifiers: [{ name: 'offset', options: { offset: [0, 32] } }]
+        },
+        showOn,
+        when
       });
     });
 
@@ -54,20 +71,6 @@ describe('Tour | Top-Level Class', function() {
       expect(difference.length, 'all tour events bound').toBe(0);
     });
 
-    it('sets defaults for tippy', function() {
-      const tourSpy = spy(Shepherd.Tour.prototype, '_setTooltipDefaults');
-      const tippySpy = spy(tippy, 'setDefaults');
-
-      expect(tourSpy.callCount).toBe(0);
-      expect(tippySpy.callCount).toBe(0);
-
-      instance = new Shepherd.Tour({ defaultStepOptions });
-
-      expect(tourSpy.callCount).toBe(1);
-      expect(tippySpy.callCount).toBe(1);
-      expect(tippySpy.calledWith(tooltipDefaults)).toBe(true);
-    });
-
     it('generates a unique `id` property, optionally based upon the `tourName` option', function() {
       const instance1 = new Shepherd.Tour();
       const instance2 = new Shepherd.Tour({ tourName: 'select-avatar' });
@@ -75,7 +78,7 @@ describe('Tour | Top-Level Class', function() {
       expect(instance1.id.startsWith('tour--')).toBe(true);
       expect(instance2.id.startsWith('select-avatar--')).toBe(true);
 
-      const uniqueId1 = instance1.id.split('--')[1];
+      const [uniqueId1] = instance1.id.split('--')[1];
       const uniqueId2 = instance2.id.split('--')[1];
 
       expect(uniqueId1).not.toBe(uniqueId2);
@@ -90,12 +93,12 @@ describe('Tour | Top-Level Class', function() {
         defaultStepOptions
       });
 
-      instance.addStep('test', {
+      instance.addStep({
         id: 'test',
         title: 'This is a test step for our tour'
       });
 
-      instance.addStep('skipped-step', {
+      instance.addStep({
         classes: 'skipped',
         id: 'skipped-step',
         title: 'This step should be skipped',
@@ -104,12 +107,12 @@ describe('Tour | Top-Level Class', function() {
         }
       });
 
-      instance.addStep('test2', {
+      instance.addStep({
         id: 'test2',
         title: 'Another Step'
       });
 
-      instance.addStep('test3', {
+      instance.addStep({
         id: 'test3',
         title: 'Yet, another test step'
       });
@@ -119,6 +122,16 @@ describe('Tour | Top-Level Class', function() {
       it('adds tour steps', function() {
         expect(instance.steps.length).toBe(4);
         expect(instance.getById('test').options.classes, 'classes passed to step options').toBe(DEFAULT_STEP_CLASS);
+      });
+
+      it('adds tour steps at specified index', function() {
+        expect(instance.steps[2].options.id, 'original step at index 2').toBe('test2');
+        instance.addStep({
+          id: 'index-test',
+          title: 'Test index insertion'
+        }, 2);
+        expect(instance.steps.length).toBe(5);
+        expect(instance.steps[2].options.id, 'step inserted at index 2').toBe('index-test');
       });
 
       it('adds steps with only one arg', function() {
@@ -154,14 +167,6 @@ describe('Tour | Top-Level Class', function() {
 
         expect(instance).toBe(Shepherd.activeTour);
       });
-
-      it('adds the current tour\'s "id" property to the body as a data attribute', function() {
-        instance.id = 'test-id';
-        instance.start();
-
-        expect(document.body.hasAttribute('data-shepherd-active-tour')).toBe(true);
-        expect(document.body.getAttribute('data-shepherd-active-tour')).toBe('test-id');
-      });
     });
 
     describe('.getCurrentStep()', function() {
@@ -173,7 +178,7 @@ describe('Tour | Top-Level Class', function() {
 
     describe('.hide()', function() {
       it('hides the current step', () => {
-        const firstStep = instance.steps[0];
+        const [firstStep] = instance.steps;
         const hideStepSpy = spy(firstStep, 'hide');
 
         expect(firstStep.isOpen()).toBe(false);
@@ -233,7 +238,7 @@ describe('Tour | Top-Level Class', function() {
           confirmCancelMessage: 'Confirm cancel?'
         });
 
-        instance.addStep('test', {
+        instance.addStep({
           id: 'test',
           title: 'This is a test step for our tour'
         });
@@ -296,7 +301,7 @@ describe('Tour | Top-Level Class', function() {
       });
 
       it('calls `done()`', () => {
-        const doneSpy = spy(instance, 'done');
+        const doneSpy = spy(instance, '_done');
 
         expect(doneSpy.callCount).toBe(0);
 
@@ -307,7 +312,7 @@ describe('Tour | Top-Level Class', function() {
       });
     });
 
-    describe('.done()', function() {
+    describe('._done()', function() {
       it('tears down the active tour', function() {
         instance.start();
 
@@ -329,13 +334,13 @@ describe('Tour | Top-Level Class', function() {
         instance.start();
         instance.show('element-removal-test');
 
-        expect(document.querySelector(`.element-removal-test`),
+        expect(document.querySelector('.element-removal-test'),
           'a step is rendered in the DOM after the tour starts')
           .toBeInTheDocument();
 
         instance.complete();
 
-        expect(document.querySelector(`.element-removal-test`),
+        expect(document.querySelector('.element-removal-test'),
           'steps are removed from the DOM after the tour completes')
           .not.toBeInTheDocument();
       });
@@ -380,14 +385,6 @@ describe('Tour | Top-Level Class', function() {
     });
 
     describe('.show()', function() {
-      let dropSpy;
-
-      beforeEach(() => {
-        rewire$drop(dropSpy = spy(drop));
-      });
-
-      afterEach(restore);
-
       it('show short-circuits if next is not found', function() {
         let showFired = false;
         instance.start();
@@ -408,18 +405,9 @@ describe('Tour | Top-Level Class', function() {
         shouldShowStep = true;
         instance.next();
         expect(instance.getCurrentStep().id, 'step shown because `showOn` returns true').toBe('skipped-step');
-
-        // This spy checks that, when we call `trigger` with `show`, that we pass `arguments` down.
-        const dropArguments = dropSpy.args[2][0];
-        const dropReturnValue = dropSpy.returnValues[2][0];
-        expect(dropArguments[0]).toBe('show');
-        expect(dropArguments[1].previous).toBe(null);
-        expect(dropArguments[1].step.id).toBe('test');
-        expect(dropReturnValue.previous).toBe(null);
-        expect(dropReturnValue.step.id).toBe('test');
       });
 
-      it(`sets the instance on \`Shepherd.activeTour\` if it's not already set`, function() {
+      it('sets the instance on `Shepherd.activeTour` if it\'s not already set', function() {
         const setupFuncSpy = spy(instance, '_setupActiveTour');
         Shepherd.activeTour = null;
 
@@ -430,6 +418,116 @@ describe('Tour | Top-Level Class', function() {
         expect(setupFuncSpy.callCount).toBe(1);
         expect(Shepherd.activeTour).toBe(instance);
       });
+    });
+  });
+
+  describe('popperOptions', () => {
+    it('applies the default modifiers from defaultStepOptions', function() {
+      instance = new Shepherd.Tour({ defaultStepOptions });
+
+      const step = instance.addStep({
+        id: 'test',
+        title: 'This is a test step for our tour'
+      });
+
+      instance.start();
+
+      const popperOptions = setupTooltip(step);
+
+      expect(popperOptions.modifiers.length).toBe(4);
+    });
+
+    it('adds a step modifer to default modifiers', function() {
+      instance = new Shepherd.Tour({ defaultStepOptions });
+
+      const step = instance.addStep({
+        id: 'test',
+        title: 'This is a test step for our tour',
+        popperOptions: {
+          modifiers: [{ name: 'foo', options: 'bar' }]
+        }
+      });
+
+      instance.start();
+
+      const popperOptions = setupTooltip(step);
+
+      expect(popperOptions.modifiers.length).toBe(5);
+    });
+
+    it('correctly changes modifiers when going from centered to attached', function() {
+      const div = document.createElement('div');
+      div.classList.add('modifiers-test');
+      document.body.appendChild(div);
+      instance = new Shepherd.Tour({ defaultStepOptions });
+
+      const centeredStep = instance.addStep({
+        id: 'centered',
+        title: 'This is a centered step for our tour',
+        popperOptions: {
+          modifiers: [{ name: 'foo', options: 'bar' }]
+        }
+      });
+
+      const attachedStep = instance.addStep({
+        attachTo: { element: '.modifiers-test', on: 'top' },
+        id: 'attached',
+        title: 'This is an attached step for our tour',
+        popperOptions: {
+          modifiers: [{ name: 'foo', options: 'bar' }]
+        }
+      });
+
+      instance.start();
+
+      let popperOptions = setupTooltip(centeredStep);
+      let modifierNames = popperOptions.modifiers.map((modifier) => modifier.name);
+      expect(popperOptions.modifiers.length).toBe(5);
+      expect(modifierNames.includes('applyStyles')).toBe(true);
+      expect(modifierNames.includes('computeStyles')).toBe(true);
+      expect(modifierNames.includes('offset')).toBe(true);
+      expect(modifierNames.includes('foo')).toBe(true);
+      expect(modifierNames.includes('preventOverflow')).toBe(false);
+
+      instance.next();
+
+      popperOptions = setupTooltip(attachedStep);
+      modifierNames = popperOptions.modifiers.map((modifier) => modifier.name);
+      expect(popperOptions.modifiers.length).toBe(4);
+      expect(modifierNames.includes('preventOverflow')).toBe(true);
+      expect(modifierNames.includes('offset')).toBe(true);
+      expect(modifierNames.includes('foo')).toBe(true);
+      expect(modifierNames.includes('applyStyles')).toBe(false);
+      expect(modifierNames.includes('computeStyles')).toBe(false);
+
+      document.body.removeChild(div);
+    });
+  });
+
+  describe('shepherdModalOverlayContainer', function() {
+    beforeEach(() => {
+      instance = new Shepherd.Tour({ useModalOverlay: true });
+    });
+    it('appends shepherdModalOverlayContainer to DOM when it does not exist', async() => {
+      expect(document.querySelector('.shepherd-modal-overlay-container')).not.toBeInTheDocument();
+
+      instance.start();
+
+      setTimeout(() => {
+        expect(document.querySelector('.shepherd-modal-overlay-container')).toBeInTheDocument();
+      }, 200);
+    });
+
+    it('removes shepherdModalOverlayContainer from DOM when it is complete', () => {
+      instance.start();
+
+      setTimeout(() => {
+        expect(document.querySelector('.shepherd-modal-overlay-container')).toBeInTheDocument();
+      }, 200);
+
+      instance.complete();
+
+      expect(document.querySelector('.shepherd-modal-overlay-container')).not.toBeInTheDocument();
     });
   });
 });

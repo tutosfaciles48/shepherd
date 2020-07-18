@@ -12,9 +12,10 @@ checks:
 exclude_patterns:
   - "dist/"
   - "docs/"
-  - "src/eager/"
+  - "jsdoc-template/"
+  - "landing/"
   - "**/node_modules/"
   - "**/test/"
   - "**/tests/"
   - "**/vendor/"
-  - "karma.conf.js"
+  - "babel.config.js"

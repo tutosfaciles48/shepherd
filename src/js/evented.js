@@ -1,10 +1,7 @@
-import { drop } from './utils/general';
 import { isUndefined } from './utils/type-check';
 
 export class Evented {
-  on(event, handler, ctx) {
-    const once = arguments.length <= 3 || arguments[3] === undefined ? false : arguments[3];
-
+  on(event, handler, ctx, once = false) {
     if (isUndefined(this.bindings)) {
       this.bindings = {};
     }
@@ -12,15 +9,18 @@ export class Evented {
       this.bindings[event] = [];
     }
     this.bindings[event].push({ handler, ctx, once });
+
+    return this;
   }
 
   once(event, handler, ctx) {
-    this.on(event, handler, ctx, true);
+    return this.on(event, handler, ctx, true);
   }
 
   off(event, handler) {
-    if (isUndefined(this.bindings) || isUndefined(this.bindings[event])) {
-      return false;
+    if (isUndefined(this.bindings) ||
+      isUndefined(this.bindings[event])) {
+      return this;
     }
 
     if (isUndefined(handler)) {
@@ -32,12 +32,12 @@ export class Evented {
         }
       });
     }
+
+    return this;
   }
 
-  trigger(event) {
+  trigger(event, ...args) {
     if (!isUndefined(this.bindings) && this.bindings[event]) {
-      const args = drop(Array.prototype.slice.call(arguments));
-
       this.bindings[event].forEach((binding, index) => {
         const { ctx, handler, once } = binding;
 
@@ -50,6 +50,7 @@ export class Evented {
         }
       });
     }
-  }
 
+    return this;
+  }
 }

@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   parserOptions: {
-    ecmaVersion: 2017,
+    ecmaVersion: 2019,
     sourceType: 'module'
   },
   extends: [
@@ -9,26 +9,38 @@ module.exports = {
     'plugin:ship-shape/recommended'
   ],
   env: {
-    browser: true
+    browser: true,
+    es6: true
   },
+  plugins: [
+    'svelte3'
+  ],
   rules: {
-    'complexity': ['warn', 6],
     'max-lines': ['warn', { max: 250, skipBlankLines: true, skipComments: true }],
-    'no-console': 'off'
+    'no-console': 'off',
+    'prefer-const': 'off'
   },
   overrides: [
+    // svelte files
+    {
+      files: ['**/*.svelte'],
+      processor: 'svelte3/svelte3'
+    },
     // node files
     {
       files: [
-        'gulpfile.js',
-        'karma.conf.js'
+        '.eslintrc.js',
+        'babel.config.js',
+        'jest.config.js',
+        'rollup.config.js',
+        'svelte.config.js',
+        'tailwind.config.js'
       ],
       parserOptions: {
-        sourceType: 'script',
+        sourceType: 'module',
         ecmaVersion: 2015
       },
       env: {
-        browser: false,
         node: true
       }
     }

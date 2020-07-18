@@ -1,92 +1,68 @@
-import autoprefixer from 'autoprefixer';
 import babel from 'rollup-plugin-babel';
 import browsersync from 'rollup-plugin-browsersync';
 import commonjs from 'rollup-plugin-commonjs';
-import css from 'rollup-plugin-css-only';
-import cssnano from 'cssnano';
-import { eslint } from 'rollup-plugin-eslint';
-import fs from 'fs';
-import license from 'rollup-plugin-license';
-import postcss from 'postcss';
+import compiler from '@ampproject/rollup-plugin-closure-compiler';
 import filesize from 'rollup-plugin-filesize';
+import license from 'rollup-plugin-license';
+import postcss from 'rollup-plugin-postcss';
+import replace from 'rollup-plugin-replace';
 import resolve from 'rollup-plugin-node-resolve';
-import sass from 'rollup-plugin-sass';
-import stylelint from 'rollup-plugin-stylelint';
-import { terser } from 'rollup-plugin-terser';
+import sveltePreprocess from 'svelte-preprocess';
+import svelte from 'rollup-plugin-svelte';
 import visualizer from 'rollup-plugin-visualizer';
 
 const pkg = require('./package.json');
 const banner = ['/*!', pkg.name, pkg.version, '*/\n'].join(' ');
 
-const sassOptions = {
-  output(styles, styleNodes) {
-    fs.mkdirSync('dist/css', { recursive: true }, (err) => {
-      if (err) {
-        throw err;
-      }
-    });
-
-    styleNodes.forEach(({ id, content }) => {
-      const scssName = id.substring(id.lastIndexOf('/') + 1, id.length);
-      const name = scssName.split('.')[0];
-      fs.writeFileSync(`dist/css/${name}.css`, content);
-    });
-  },
-  processor: css => postcss([
-    autoprefixer({
-      grid: false
-    }),
-    cssnano()
-  ])
-    .process(css)
-    .then(result => result.css)
-};
+const env = process.env.DEVELOPMENT ? 'development' : 'production';
 
 const plugins = [
-  resolve(),
+  svelte({
+    preprocess: sveltePreprocess(),
+    emitCss: true
+  }),
+  resolve({
+    extensions: ['.js', '.json', '.svelte']
+  }),
   commonjs(),
-  stylelint({
-    fix: false,
-    include: ['src/**.scss'],
-    syntax: 'scss',
-    quiet: false
+  replace({
+    'process.env.NODE_ENV': JSON.stringify(env)
   }),
-  eslint(),
   babel({
-    exclude: 'node_modules/**'
+    extensions: ['.js', '.mjs', '.html', '.svelte']
   }),
-  css({ output: false })
+  postcss({
+    plugins: [
+      require('tailwindcss'),
+      require('autoprefixer'),
+      require('cssnano')
+    ],
+    extract: 'dist/css/shepherd.css'
+  })
 ];
-
-if (!process.env.DEVELOPMENT) {
-  plugins.push(sass({
-    output: false
-  }));
-}
 
 // If we are running with --environment DEVELOPMENT, serve via browsersync for local development
 if (process.env.DEVELOPMENT) {
-  plugins.push(sass(sassOptions));
-
-  plugins.push(browsersync({
-    host: 'localhost',
-    watch: true,
-    port: 3000,
-    notify: false,
-    open: true,
-    server: {
-      baseDir: 'docs/welcome',
-      routes: {
-        '/shepherd/dist/css/shepherd-theme-default.css': 'dist/css/shepherd-theme-default.css',
-        '/shepherd/dist/js/shepherd.js': 'dist/js/shepherd.js',
-        '/shepherd/docs/welcome/js/prism.js': 'docs/welcome/js/prism.js',
-        '/shepherd/docs/welcome/js/welcome.js': 'docs/welcome/js/welcome.js',
-        '/shepherd/docs/welcome/css/prism.css': 'docs/welcome/css/prism.css',
-        '/shepherd/docs/welcome/css/welcome.css': 'docs/welcome/css/welcome.css',
-        '/shepherd/docs/welcome/sheep.svg': 'docs/welcome/sheep.svg'
+  plugins.push(
+    browsersync({
+      host: 'localhost',
+      watch: true,
+      port: 3000,
+      notify: false,
+      open: true,
+      server: {
+        routes: {
+          '/dist/css/shepherd.css': 'dist/css/shepherd.css',
+          '/dist/js/shepherd.js': 'dist/js/shepherd.js',
+          '/landing/js/prism.js': 'landing/js/prism.js',
+          '/landing/js/welcome.js': 'landing/js/welcome.js',
+          '/landing/css/prism.css': 'landing/css/prism.css',
+          '/landing/css/welcome.css': 'landing/css/welcome.css',
+          '/landing/sheep.svg': 'landing/sheep.svg'
+        }
       }
-    }
-  }));
+    })
+  );
 }
 
 plugins.push(license({ banner }));
@@ -134,14 +110,28 @@ if (!process.env.DEVELOPMENT) {
         }
       ],
       plugins: [
-        resolve(),
-        commonjs(),
-        babel({
-          exclude: 'node_modules/**'
+        svelte({
+          preprocess: sveltePreprocess(),
+          emitCss: true
         }),
-        sass(sassOptions),
-        css({ output: false }),
-        terser(),
+        resolve({
+          extensions: ['.js', '.json', '.svelte']
+        }),
+        commonjs(),
+        replace({
+          'process.env.NODE_ENV': JSON.stringify(env)
+        }),
+        babel({
+          extensions: ['.js', '.mjs', '.html', '.svelte']
+        }),
+        postcss({
+          plugins: [
+            require('autoprefixer'),
+            require('cssnano')
+          ],
+          extract: 'dist/css/shepherd.css'
+        }),
+        compiler(),
         license({
           banner
         }),

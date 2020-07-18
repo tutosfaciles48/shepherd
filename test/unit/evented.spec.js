@@ -1,4 +1,5 @@
 import { Evented } from '../../src/js/evented.js';
+import { spy } from 'sinon';
 
 describe('Evented', () => {
   let testEvent, testOnTriggered;
@@ -20,6 +21,16 @@ describe('Evented', () => {
       testEvent.trigger('testOn');
       expect(testOnTriggered, 'true is returned from event trigger').toBeTruthy();
     });
+
+    it('passes arguments to handler functions', () => {
+      const handlerSpy = spy();
+      testEvent.on('myEvent', handlerSpy);
+      testEvent.trigger('myEvent', {
+        step: { id: 'test', text: 'A step' },
+        previous: null
+      });
+      expect(handlerSpy.args).toEqual([[{ 'previous': null, 'step': { 'id': 'test', 'text': 'A step' } }]]);
+    });
   });
 
   describe('off()', () => {
@@ -29,7 +40,7 @@ describe('Evented', () => {
     });
 
     it('removes a specific event binding when handler is passed', () => {
-      const handler = () => {};
+      const handler = () => { };
       testEvent.on('testOn', handler);
       expect(testEvent.bindings.testOn.length, '2 event listeners for testOn').toBe(2);
       testEvent.off('testOn', handler);
@@ -37,7 +48,8 @@ describe('Evented', () => {
     });
 
     it('does not remove uncreated events', () => {
-      expect(testEvent.off('testBlank'), 'returns false for non created events').toBeFalsy();
+      testEvent.off('testBlank');
+      expect(testEvent.bindings.testBlank, 'returns false for non created events').toBeFalsy();
     });
   });
 
